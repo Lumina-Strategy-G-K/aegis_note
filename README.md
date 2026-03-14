@@ -2,6 +2,7 @@
 
 🌐 Website  
 [en] https://www.lumina-strategy.com/english/software/aegis-note
+
 [ja] https://www.lumina-strategy.com/%E6%97%A5%E6%9C%AC%E8%AA%9E/%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2/aegis-note
 
 **Advanced Privacy. Practical Sovereignty. Zero-Trust Architecture.**
