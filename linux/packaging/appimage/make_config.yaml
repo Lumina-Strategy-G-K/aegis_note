@@ -1,0 +1,8 @@
+app_id: com.yourcompany.aegisnote
+display_name: "Aegis Note"
+executable_name: aegis_note
+icon: "assets/LICENSE-2.0.txt"
+categories:
+  - "Office"
+  - "Utility"
+description: "A secure encrypted note-taking utility."

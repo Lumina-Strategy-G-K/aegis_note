@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Aegis Note
+GenericName=A Flutter Application
+Exec=LD_LIBRARY_PATH=usr/lib aegis_note %u
+Icon=aegis_note
+Type=Application
+StartupNotify=false
+Categories=Office;Utility
+

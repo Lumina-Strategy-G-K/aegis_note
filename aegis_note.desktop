@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Aegis Note
+Exec=aegis_note
+Icon=aegis_note
+Categories=Utility;
+Terminal=false

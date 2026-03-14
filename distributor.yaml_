@@ -1,0 +1,10 @@
+output: dist/
+publish:
+  target: github
+
+make_appimage:
+  app_id: "com.yourcompany.aegisnote"
+  display_name: "Aegis Note"
+  icon: "assets/LICENSE-2.0.txt"
+  categories:
+    - "Utility"

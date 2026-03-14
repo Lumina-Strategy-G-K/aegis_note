@@ -1,0 +1,43 @@
+name: aegis_note
+description: "A offline encrypted note-taking tool."
+publish_to: 'none'
+version: 1.0.1
+
+environment:
+  sdk: '>=3.11.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.1
+  collection: ^1.18.0
+  intl: ^0.20.2
+  zxcvbn: ^1.0.0
+  path: ^1.9.0
+  cupertino_icons: ^1.0.8
+  flutter_markdown_plus: ^1.0.4
+  cryptography: ^2.5.0
+  window_manager: ^0.5.1
+  path_provider: ^2.1.2 
+  shared_preferences: ^2.2.2
+  file_picker: ^10.3.10   
+  permission_handler: ^12.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/LICENSE-2.0.txt
+    - assets/icons/aegis_note.png
+
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon_android.png"
+  adaptive_icon_background: "#0f172a"
+  adaptive_icon_foreground: "assets/icon_android.png"
