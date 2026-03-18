@@ -1,7 +1,7 @@
 name: aegis_note
 description: "A offline encrypted note-taking tool."
 publish_to: 'none'
-version: 1.0.1
+version: 1.0.2+2
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

@@ -16,33 +16,49 @@
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:zxcvbn/zxcvbn.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:aegis_note/security_state.dart';
 
-// --- ライセンス表示 ---
+// --- 1. ライセンス表示 ---
 void showAegisLicense(BuildContext context) {
-  final state = context.read<AegisSecurityState>();
+  final state = Provider.of<AegisSecurityState>(context, listen: false);
   showAboutDialog(
     context: context,
     applicationName: "Aegis Note",
-    applicationVersion: "1.0.1",
+    applicationVersion: "1.0.2",
     applicationIcon: const Icon(Icons.shield, size: 48, color: Colors.amber),
-    applicationLegalese:
-        "Copyright 2026 Lumina Strategy G.K.\n\nLicensed under the Apache License, Version 2.0",
+    applicationLegalese: "Copyright 2026 Lumina Strategy G.K.",
     children: [
       Padding(
         padding: const EdgeInsets.only(top: 24),
-        child: Text(
-          "Apache License 2.0. Language: ${state.lang.toUpperCase()}",
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Aegis Note は、プライバシー保護とセキュリティを目的とした暗号化ノートです。",
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "Licensed under the Apache License 2.0.\nLanguage: ${state.lang.toUpperCase()}",
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey,
+              ),
+            ),
+          ],
         ),
       ),
     ],
   );
 }
 
+// --- 2. メイン作業画面 ---
 class MainWorkbench extends StatefulWidget {
   const MainWorkbench({super.key});
   @override
@@ -117,7 +133,6 @@ class _MainWorkbenchState extends State<MainWorkbench> {
     );
   }
 
-  // デスクトップ版
   Widget _buildDesktop(BuildContext context, AegisSecurityState state) {
     return Scaffold(
       body: Row(
@@ -289,7 +304,6 @@ class _MainWorkbenchState extends State<MainWorkbench> {
     );
   }
 
-  // モバイル版
   Widget _buildMobile(BuildContext context, AegisSecurityState state) {
     if (state.selectedFile != null) {
       return PopScope(
@@ -404,11 +418,15 @@ class _MainWorkbenchState extends State<MainWorkbench> {
     }
   }
 
-  void _showInputDialog(ctx, title, onConfirm) {
-    final state = Provider.of<AegisSecurityState>(ctx, listen: false);
+  void _showInputDialog(
+    BuildContext context,
+    String title,
+    Function(String) onConfirm,
+  ) {
+    final state = Provider.of<AegisSecurityState>(context, listen: false);
     final c = TextEditingController();
     showDialog(
-      context: ctx,
+      context: context,
       builder: (ctx) => AlertDialog(
         title: Text(title),
         content: TextField(controller: c, autofocus: true),
@@ -429,10 +447,10 @@ class _MainWorkbenchState extends State<MainWorkbench> {
     );
   }
 
-  void _showCreateFileDialog(ctx, state) {
+  void _showCreateFileDialog(BuildContext context, AegisSecurityState state) {
     final c = TextEditingController();
     showDialog(
-      context: ctx,
+      context: context,
       builder: (ctx) => AlertDialog(
         title: Text(state.t('new_file')),
         content: TextField(controller: c, autofocus: true),
@@ -456,73 +474,127 @@ class _MainWorkbenchState extends State<MainWorkbench> {
     );
   }
 
-  void _showPwChangeDialog(ctx, state) {
+  void _showPwChangeDialog(BuildContext context, AegisSecurityState state) {
     final c1 = TextEditingController();
     final c2 = TextEditingController();
     final c3 = TextEditingController();
     showDialog(
-      context: ctx,
+      context: context,
       barrierDismissible: false,
-      builder: (ctx) => Consumer<AegisSecurityState>(
-        builder: (context, st, _) => AlertDialog(
-          title: Text(state.t('pw_change')),
-          content: st.isProcessing
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(value: st.passwordChangeProgress),
-                  ],
-                )
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: c1,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: state.t('current_pw'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setInternalState) {
+          return Consumer<AegisSecurityState>(
+            builder: (context, st, _) => AlertDialog(
+              title: Text(st.t('pw_change')),
+              content: st.isProcessing
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 10),
+                        LinearProgressIndicator(
+                          value: st.passwordChangeProgress,
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildAegisPasswordField(
+                          st,
+                          c1,
+                          st.t('current_pw'),
+                          () => setInternalState(() {}),
+                        ),
+                        _buildAegisPasswordField(
+                          st,
+                          c2,
+                          st.t('new_pw'),
+                          () => setInternalState(() {}),
+                        ),
+                        _buildAegisPasswordField(
+                          st,
+                          c3,
+                          st.t('confirm_pw'),
+                          () => setInternalState(() {}),
+                        ),
+                      ],
+                    ),
+              actions: st.isProcessing
+                  ? []
+                  : [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(st.t('cancel')),
                       ),
-                    ),
-                    TextField(
-                      controller: c2,
-                      obscureText: true,
-                      decoration: InputDecoration(labelText: state.t('new_pw')),
-                    ),
-                    TextField(
-                      controller: c3,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: state.t('confirm_pw'),
+                      ElevatedButton(
+                        onPressed: (c2.text == c3.text && c2.text.length >= 3)
+                            ? () async {
+                                await st.changeMasterPassword(c1.text, c2.text);
+                                if (context.mounted) Navigator.pop(ctx);
+                              }
+                            : null,
+                        child: Text(st.t('execute')),
                       ),
-                    ),
-                  ],
-                ),
-          actions: st.isProcessing
-              ? []
-              : [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(state.t('cancel')),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (c2.text == c3.text && c2.text.length >= 3) {
-                        await st.changeMasterPassword(c1.text, c2.text);
-                        Navigator.pop(ctx);
-                      }
-                    },
-                    child: Text(state.t('execute')),
-                  ),
-                ],
-        ),
+                    ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-// --- 部品類 ---
+// --- 3. 共通部品：IMEリアクティブ・シールド搭載パスワード入力欄 ---
+Widget _buildAegisPasswordField(
+  AegisSecurityState state,
+  TextEditingController controller,
+  String label,
+  VoidCallback onUpdate,
+) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: TextField(
+      controller: controller,
+      obscureText: true,
+      autocorrect: false,
+      enableSuggestions: false,
+      readOnly: state.isImeBlocked,
+      inputFormatters: [
+        TextInputFormatter.withFunction((oldValue, newValue) {
+          if (newValue.composing.start >= 0 ||
+              newValue.text.contains(RegExp(r'[^\x20-\x7E]'))) {
+            Future.microtask(() {
+              state.setImeBlocked(true);
+              onUpdate();
+            });
+            return oldValue;
+          }
+          return newValue;
+        }),
+      ],
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        errorText: state.isImeBlocked ? state.t('err_ime') : null,
+        filled: state.isImeBlocked,
+        fillColor: state.isImeBlocked ? Colors.red.withOpacity(0.1) : null,
+        suffixIcon: state.isImeBlocked
+            ? IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.red),
+                onPressed: () {
+                  state.setImeBlocked(false);
+                  onUpdate();
+                },
+              )
+            : null,
+      ),
+      onChanged: (_) => onUpdate(),
+    ),
+  );
+}
+
+// --- 4. フォルダツリー ---
 class FolderTreeWidget extends StatelessWidget {
   final FolderNode node;
   final int depth;
@@ -562,6 +634,7 @@ class FolderTreeWidget extends StatelessWidget {
             style: const TextStyle(fontSize: 13),
           ),
           selected: isSel,
+          selectedTileColor: Colors.white10,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -613,6 +686,7 @@ class FolderTreeWidget extends StatelessWidget {
   }
 }
 
+// --- 5. エディタ & プレビュー ---
 class NoteEditorView extends StatelessWidget {
   const NoteEditorView({super.key});
   @override
@@ -636,6 +710,7 @@ class NoteEditorView extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.delete_sweep, size: 20),
                 onPressed: () => state.clearClipboard(context),
+                tooltip: state.t('msg_clipboard'),
               ),
               Text(state.t('preview'), style: const TextStyle(fontSize: 12)),
               Switch(
@@ -698,6 +773,7 @@ class NoteEditorView extends StatelessWidget {
   }
 }
 
+// --- 6. セットアップ画面 ---
 class SetupPage extends StatefulWidget {
   const SetupPage({super.key});
   @override
@@ -710,7 +786,7 @@ class _SetupPageState extends State<SetupPage> {
   final _zxc = Zxcvbn();
   @override
   Widget build(BuildContext context) {
-    final state = context.read<AegisSecurityState>();
+    final state = context.watch<AegisSecurityState>();
     int score = _p1.text.isEmpty
         ? 0
         : (_zxc.evaluate(_p1.text).score ?? 0).toInt().clamp(0, 4);
@@ -731,14 +807,11 @@ class _SetupPageState extends State<SetupPage> {
                 ),
               ),
               const SizedBox(height: 32),
-              TextField(
-                controller: _p1,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: state.t('new_pw'),
-                  border: const OutlineInputBorder(),
-                ),
+              _buildAegisPasswordField(
+                state,
+                _p1,
+                state.t('new_pw'),
+                () => setState(() {}),
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
@@ -752,14 +825,11 @@ class _SetupPageState extends State<SetupPage> {
                 ][score],
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _p2,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: state.t('confirm_pw'),
-                  border: const OutlineInputBorder(),
-                ),
+              _buildAegisPasswordField(
+                state,
+                _p2,
+                state.t('confirm_pw'),
+                () => setState(() {}),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -786,6 +856,7 @@ class _SetupPageState extends State<SetupPage> {
   }
 }
 
+// --- 7. ログイン画面 ---
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
   @override
@@ -810,7 +881,7 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                "🛡️ Aegis Note",
+                "🛡️ AEGIS NOTE",
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32),
@@ -819,14 +890,11 @@ class _LoginPageState extends State<LoginPage> {
                   state.loginErrorMessage!,
                   style: const TextStyle(color: Colors.red),
                 ),
-              TextField(
-                controller: _pw,
-                obscureText: true,
-                onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
-                  labelText: state.t('password'),
-                  border: const OutlineInputBorder(),
-                ),
+              _buildAegisPasswordField(
+                state,
+                _pw,
+                state.t('password'),
+                () => setState(() {}),
               ),
               const SizedBox(height: 10),
               LinearProgressIndicator(
@@ -851,6 +919,7 @@ class _LoginPageState extends State<LoginPage> {
                   IconButton(
                     icon: const Icon(Icons.delete_sweep),
                     onPressed: () => state.clearClipboard(context),
+                    tooltip: state.t('msg_clipboard'),
                   ),
                 ],
               ),

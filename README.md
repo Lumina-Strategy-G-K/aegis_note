@@ -7,6 +7,8 @@
 
 **Advanced Privacy. Practical Sovereignty. Zero-Trust Architecture.**
 
+
+
 [English](#english) | [日本語](#japanese)
 
 ---

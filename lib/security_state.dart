@@ -32,6 +32,7 @@ class FolderNode {
 }
 
 class AegisSecurityState extends ChangeNotifier {
+  // --- 状態フラグ ---
   bool _isLoggedIn = false;
   bool get isLoggedIn => _isLoggedIn;
   bool isEditing = false;
@@ -40,12 +41,26 @@ class AegisSecurityState extends ChangeNotifier {
   bool get isPreviewMode => _isPreviewMode;
   bool _isFirstRun = true;
   bool get isFirstRun => _isFirstRun;
-
   bool _needsAndroidPath = false;
   bool get needsAndroidPath => _needsAndroidPath;
   bool _isInFolder = false;
   bool get isInFolder => _isInFolder;
 
+  // --- IMEガード ---
+  bool _isImeBlocked = false;
+  bool get isImeBlocked => _isImeBlocked;
+  void setImeBlocked(bool value) {
+    if (_isImeBlocked != value) {
+      _isImeBlocked = value;
+      notifyListeners();
+    }
+  }
+
+  // Windows用ダミー
+  Future<void> disableSystemIme() async {}
+  Future<void> enableSystemIme() async {}
+
+  // --- 管理データ ---
   String? loginErrorMessage;
   double passwordChangeProgress = 0.0;
   Directory? rootDirectory;
@@ -56,293 +71,306 @@ class AegisSecurityState extends ChangeNotifier {
   final TextEditingController editorController = TextEditingController();
   final Set<String> _expandedPaths = {};
 
-  // --- 多言語化エンジン ---
+  // --- 多言語化 ---
   String _lang = 'en';
   String get lang => _lang;
-
   static const Map<String, Map<String, String>> _dict = {
     'en': {
-      'folders': 'FOLDERS',
+      'folders': 'DIRECTORIES',
       'files': 'FILES',
-      'login': 'Login',
-      'setup': 'INITIAL SETUP',
+      'login': 'AUTHENTICATION',
+      'setup': 'INITIAL CONFIGURATION',
       'password': 'Master Password',
       'confirm_pw': 'Confirm Password',
-      'new_pw': 'New Password',
-      'current_pw': 'Current Password',
-      'start': 'Start',
-      'setup_done': 'Complete Setup',
-      'save': 'Save',
-      'discard': 'Discard',
-      'edit': 'Edit',
-      'preview': 'Preview',
-      'new_folder': 'New Folder',
-      'new_file': 'New File',
-      'rename': 'Rename',
-      'delete': 'Delete',
-      'logout': 'Logout',
-      'pw_change': 'Change Password',
-      'license': 'License',
-      'msg_inactivity': 'Inactivity detected. Logging out in ',
-      'msg_sec': 's',
-      'msg_continue': 'Continue',
-      'msg_unsaved': 'Unsaved changes',
-      'msg_confirm_discard': 'Discard changes and proceed?',
-      'msg_confirm_delete': 'Delete this item?',
-      'text_file': 'Text',
-      'md_file': 'Markdown',
-      'cancel': 'Cancel',
-      'execute': 'Execute',
-      'err_login': 'Invalid password',
-      'pick_folder': 'Select Storage Folder',
+      'new_pw': 'New Master Password',
+      'current_pw': 'Current Master Password',
+      'start': 'START',
+      'setup_done': 'COMPLETE CONFIGURATION',
+      'save': 'SAVE CHANGES',
+      'discard': 'DISCARD CHANGES',
+      'edit': 'EDIT MODE',
+      'preview': 'VIEW MODE',
+      'new_folder': 'NEW DIRECTORY',
+      'new_file': 'NEW FILE',
+      'rename': 'RENAME',
+      'delete': 'DELETE',
+      'logout': 'TERMINATE SESSION',
+      'pw_change': 'UPDATE PASSWORD',
+      'license': 'LICENSE INFORMATION',
+      'msg_inactivity': 'Inactivity detected. Automatic logout in ',
+      'msg_sec': ' seconds',
+      'msg_continue': 'CONTINUE SESSION',
+      'msg_unsaved': 'UNSAVED CHANGES',
+      'msg_confirm_discard': 'Discard unsaved changes and proceed?',
+      'msg_confirm_delete': 'Permanently delete this item and its contents?',
+      'text_file': 'Plain Text (.ext)',
+      'md_file': 'Markdown (.mde)',
+      'cancel': 'CANCEL',
+      'execute': 'EXECUTE',
+      'err_login': 'Authentication failed. Incorrect password.',
+      'pick_folder': 'SELECT DATA REPOSITORY',
       'android_pick_msg':
-          'Please select a folder to store your encrypted notes.',
+          'Please select a persistent directory for encrypted data storage.',
+      'err_ime': 'Please disable the IME.',
+      'msg_clipboard': 'Clipboard content has been securely cleared. 🗑️',
     },
     'ja': {
-      'folders': 'フォルダ',
-      'files': 'ファイル',
-      'login': 'ログイン',
+      'folders': 'ディレクトリ一覧',
+      'files': 'ファイル一覧',
+      'login': '認証実行',
       'setup': '初期セットアップ',
       'password': 'マスターパスワード',
-      'confirm_pw': '確認用入力',
-      'new_pw': '新しいパスワード',
-      'current_pw': '現在のパスワード',
-      'start': '開始する',
-      'setup_done': '設定完了',
-      'save': '保存',
-      'discard': '破棄',
-      'edit': '編集',
-      'preview': '閲覧',
-      'new_folder': 'フォルダ作成',
-      'new_file': '新規作成',
-      'rename': '名前変更',
-      'delete': '削除',
-      'logout': 'ログアウト',
-      'pw_change': 'パスワード変更',
-      'license': 'ライセンス',
-      'msg_inactivity': '放置を検知しました。あと ',
-      'msg_sec': ' 秒でログアウトします',
-      'msg_continue': '継続',
+      'confirm_pw': 'パスワード（再入力）',
+      'new_pw': '新規マスターパスワード',
+      'current_pw': '現在のマスターパスワード',
+      'start': '開始',
+      'setup_done': '設定を完了する',
+      'save': '変更を保存',
+      'discard': '変更を破棄',
+      'edit': '編集モード',
+      'preview': '閲覧モード',
+      'new_folder': 'ディレクトリ作成',
+      'new_file': '新規ファイル作成',
+      'rename': '名称変更',
+      'delete': '削除実行',
+      'logout': 'セッション終了',
+      'pw_change': 'パスワードの更新',
+      'license': 'ライセンス情報',
+      'msg_inactivity': '無操作状態を検知しました。自動ログアウトまで残り ',
+      'msg_sec': ' 秒',
+      'msg_continue': '作業を継続',
       'msg_unsaved': '未保存の変更',
-      'msg_confirm_discard': '変更を破棄してよろしいですか？',
-      'msg_confirm_delete': '本当に削除しますか？',
-      'text_file': 'テキスト',
-      'md_file': 'マークダウン',
+      'msg_confirm_discard': '未保存の変更を破棄してよろしいですか？',
+      'msg_confirm_delete': '対象の項目（および内部データ）を完全に削除しますか？',
+      'text_file': 'テキスト (.ext)',
+      'md_file': 'マークダウン (.mde)',
       'cancel': 'キャンセル',
       'execute': '実行',
-      'err_login': 'パスワードが正しくありません',
-      'pick_folder': '保存場所の選択',
-      'android_pick_msg': 'データを保存するフォルダを選んでください。',
+      'err_login': '認証に失敗しました。パスワードを確認してください。',
+      'pick_folder': 'データ保存先の選択',
+      'android_pick_msg': '暗号化データを保管するための永続的なディレクトリを選択してください。',
+      'err_ime': 'IMEを無効にしてください。',
+      'msg_clipboard': 'クリップボードのデータを消去しました。 🗑️',
     },
     'fr': {
-      'folders': 'DOSSIERS',
+      'folders': 'RÉPERTOIRES',
       'files': 'FICHIERS',
-      'login': 'Connexion',
-      'setup': 'CONFIGURATION',
+      'login': 'AUTHENTIFICATION',
+      'setup': 'CONFIGURATION INITIALE',
       'password': 'Mot de passe maître',
       'confirm_pw': 'Confirmer le mot de passe',
       'new_pw': 'Nouveau mot de passe',
       'current_pw': 'Mot de passe actuel',
-      'start': 'Démarrer',
-      'setup_done': 'Terminer la configuration',
-      'save': 'Enregistrer',
-      'discard': 'Abandonner',
-      'edit': 'Modifier',
-      'preview': 'Aperçu',
-      'new_folder': 'Nouveau dossier',
-      'new_file': 'Nouveau fichier',
-      'rename': 'Renommer',
-      'delete': 'Supprimer',
-      'logout': 'Déconnexion',
-      'pw_change': 'Changer le mot de passe',
-      'license': 'Licence',
+      'start': 'DÉMARRER',
+      'setup_done': 'TERMINER LA CONFIGURATION',
+      'save': 'ENREGISTRER',
+      'discard': 'ABANDONNER',
+      'edit': 'MODE ÉDITION',
+      'preview': 'MODE APERÇU',
+      'new_folder': 'NOUVEAU RÉPERTOIRE',
+      'new_file': 'NOUVEAU FICHIER',
+      'rename': 'RENOMMER',
+      'delete': 'SUPPRIMER',
+      'logout': 'TERMINER LA SESSION',
+      'pw_change': 'METTRE À JOUR LE MOT DE PASSE',
+      'license': 'INFORMATIONS DE LICENCE',
       'msg_inactivity': 'Inactivité détectée. Déconnexion dans ',
-      'msg_sec': 's',
-      'msg_continue': 'Continuer',
-      'msg_unsaved': 'Modifications non enregistrées',
+      'msg_sec': ' secondes',
+      'msg_continue': 'CONTINUER LA SESSION',
+      'msg_unsaved': 'MODIFICATIONS NON ENREGISTRÉES',
       'msg_confirm_discard': 'Abandonner les modifications et continuer ?',
-      'msg_confirm_delete': 'Supprimer cet élément ?',
-      'text_file': 'Texte',
-      'md_file': 'Markdown',
-      'cancel': 'Annuler',
-      'execute': 'Exécuter',
-      'err_login': 'Mot de passe invalide',
-      'pick_folder': 'Choisir le dossier de stockage',
+      'msg_confirm_delete':
+          'Supprimer définitivement cet élément et son contenu ?',
+      'text_file': 'Texte brut (.ext)',
+      'md_file': 'Markdown (.mde)',
+      'cancel': 'ANNULER',
+      'execute': 'EXÉCUTER',
+      'err_login': 'Échec de l\'authentification. Mot de passe incorrect.',
+      'pick_folder': 'SÉLECTIONNER LE RÉPERTOIRE',
       'android_pick_msg':
-          'Veuillez choisir un dossier pour stocker vos notes chiffrées.',
+          'Veuillez choisir un répertoire pour le stockage des données chiffrées.',
+      "err_ime": "Désactivez la méthode de saisie.",
+      'msg_clipboard': 'Le contenu du presse-papiers a été effacé. 🗑️',
     },
     'es': {
-      'folders': 'CARPETAS',
+      'folders': 'DIRECTORIOS',
       'files': 'ARCHIVOS',
-      'login': 'Iniciar sesión',
+      'login': 'AUTENTICACIÓN',
       'setup': 'CONFIGURACIÓN INICIAL',
       'password': 'Contraseña maestra',
       'confirm_pw': 'Confirmar contraseña',
-      'new_pw': 'Nueva contraseña',
+      'new_pw': 'Nueva contraseña maestra',
       'current_pw': 'Contraseña actual',
-      'start': 'Comenzar',
-      'setup_done': 'Completar configuración',
-      'save': 'Guardar',
-      'discard': 'Descartar',
-      'edit': 'Editar',
-      'preview': 'Vista previa',
-      'new_folder': 'Nueva carpeta',
-      'new_file': 'Nuevo archivo',
-      'rename': 'Renombrar',
-      'delete': 'Eliminar',
-      'logout': 'Cerrar sesión',
-      'pw_change': 'Cambiar contraseña',
-      'license': 'Licencia',
-      'msg_inactivity': 'Inactividad détectada. Cerrando sesión en ',
-      'msg_sec': 's',
-      'msg_continue': 'Continuar',
-      'msg_unsaved': 'Cambios no guardados',
+      'start': 'INICIAR',
+      'setup_done': 'COMPLETAR CONFIGURACIÓN',
+      'save': 'GUARDAR CAMBIOS',
+      'discard': 'DESCARTAR CAMBIOS',
+      'edit': 'MODO EDICIÓN',
+      'preview': 'MODO VISTA PREVIA',
+      'new_folder': 'NUEVO DIRECTORIO',
+      'new_file': 'NUEVO ARCHIVO',
+      'rename': 'RENOMBRAR',
+      'delete': 'ELIMINAR',
+      'logout': 'CERRAR SESIÓN',
+      'pw_change': 'ACTUALIZAR CONTRASEÑA',
+      'license': 'INFORMACIÓN DE LICENCIA',
+      'msg_inactivity': 'Inactividad detectada. Cierre de sesión en ',
+      'msg_sec': ' segundos',
+      'msg_continue': 'CONTINUAR SESIÓN',
+      'msg_unsaved': 'CAMBIOS NO GUARDADOS',
       'msg_confirm_discard': '¿Descartar cambios y continuar?',
-      'msg_confirm_delete': '¿Eliminar este elemento?',
-      'text_file': 'Texto',
-      'md_file': 'Markdown',
-      'cancel': 'Cancelar',
-      'execute': 'Ejecutar',
-      'err_login': 'Contraseña incorrecta',
-      'pick_folder': 'Seleccionar carpeta de almacenamiento',
+      'msg_confirm_delete': '¿Eliminar permanentemente este elemento?',
+      'text_file': 'Texto plano (.ext)',
+      'md_file': 'Markdown (.mde)',
+      'cancel': 'CANCELAR',
+      'execute': 'EJECUTAR',
+      'err_login': 'Fallo de autenticación. Contraseña incorrecta.',
+      'pick_folder': 'SELECCIONAR DIRECTORIO DE DATOS',
       'android_pick_msg':
-          'Seleccione una carpeta para guardar sus notas cifradas.',
+          'Seleccione un directorio para el almacenamiento de datos cifrados.',
+      'err_ime': 'Por favor, desactive el IME.',
+      'msg_clipboard': 'El portapapeles se ha borrado de forma segura. 🗑️',
     },
     'ru': {
-      'folders': 'ПАПКИ',
+      'folders': 'ДИРЕКТОРИИ',
       'files': 'ФАЙЛЫ',
-      'login': 'Вход',
+      'login': 'АУТЕНТИФИКАЦИЯ',
       'setup': 'НАЧАЛЬНАЯ НАСТРОЙКА',
       'password': 'Мастер-пароль',
-      'confirm_pw': 'Подтвердите пароль',
-      'new_pw': 'Новый пароль',
-      'current_pw': 'Текущий пароль',
-      'start': 'Начать',
-      'setup_done': 'Завершить настройку',
-      'save': 'Сохранить',
-      'discard': 'Отменить',
-      'edit': 'Правка',
-      'preview': 'Просмотр',
-      'new_folder': 'Новая папка',
-      'new_file': 'Новый файл',
-      'rename': 'Переименовать',
-      'delete': 'Удалить',
-      'logout': 'Выход',
-      'pw_change': 'Сменить пароль',
-      'license': 'Лицензия',
-      'msg_inactivity': 'Неактивность. Выход через ',
-      'msg_sec': 'сек',
-      'msg_continue': 'Продолжить',
-      'msg_unsaved': 'Несохраненные изменения',
+      'confirm_pw': 'Подтверждение пароля',
+      'new_pw': 'Новый мастер-пароль',
+      'current_pw': 'Текущий мастер-пароль',
+      'start': 'ПУСК',
+      'setup_done': 'ЗАВЕРШИТЬ НАСТРОЙКУ',
+      'save': 'СОХРАНИТЬ ИЗМЕНЕНИЯ',
+      'discard': 'ОТМЕНИТЬ ИЗМЕНЕНИЯ',
+      'edit': 'РЕЖИМ ПРАВКИ',
+      'preview': 'РЕЖИМ ПРОСМОТРА',
+      'new_folder': 'НОВАЯ ДИРЕКТОРИЯ',
+      'new_file': 'НОВЫЙ ФАЙЛ',
+      'rename': 'ПЕРЕИМЕНОВАТЬ',
+      'delete': 'УДАЛИТЬ',
+      'logout': 'ЗАВЕРШИТЬ СЕССИЮ',
+      'pw_change': 'ОБНОВИТЬ ПАРОЛЬ',
+      'license': 'ЛИЦЕНЗИОННАЯ ИНФОРМАЦИЯ',
+      'msg_inactivity': 'Обнаружена неактивность. Выход через ',
+      'msg_sec': ' секунд',
+      'msg_continue': 'ПРОДОЛЖИТЬ СЕССИЮ',
+      'msg_unsaved': 'НЕСОХРАНЕННЫЕ ИЗМЕНЕНИЯ',
       'msg_confirm_discard': 'Отменить изменения и продолжить?',
-      'msg_confirm_delete': 'Удалить этот объект?',
-      'text_file': 'Текст',
-      'md_file': 'Markdown',
-      'cancel': 'Отмена',
-      'execute': 'Выполнить',
-      'err_login': 'Неверный пароль',
-      'pick_folder': 'Выбрать папку для хранения',
-      'android_pick_msg': 'Выберите папку для хранения зашифрованных заметок.',
+      'msg_confirm_delete': 'Удалить этот объект и его содержимое?',
+      'text_file': 'Текст (.ext)',
+      'md_file': 'Markdown (.mde)',
+      'cancel': 'ОТМЕНА',
+      'execute': 'ВЫПОЛНИТЬ',
+      'err_login': 'Ошибка аутентификации. Неверный пароль.',
+      'pick_folder': 'ВЫБРАТЬ ХРАНИЛИЩЕ ДАННЫХ',
+      'android_pick_msg':
+          'Выберите директорию для хранения зашифрованных данных.',
+      'err_ime': 'Пожалуйста, отключите IME.',
+      'msg_clipboard': 'Буфер обмена успешно очищен. 🗑️',
     },
     'zh': {
-      'folders': '文件夹',
-      'files': '文件',
-      'login': '登录',
-      'setup': '初始设置',
+      'folders': '目录列表',
+      'files': '文件列表',
+      'login': '身份验证',
+      'setup': '初始配置',
       'password': '主密码',
       'confirm_pw': '确认密码',
-      'new_pw': '新密码',
-      'current_pw': '当前密码',
+      'new_pw': '新主密码',
+      'current_pw': '当前主密码',
       'start': '开始',
-      'setup_done': '完成设置',
-      'save': '保存',
-      'discard': '放弃',
-      'edit': '编辑',
-      'preview': '预览',
-      'new_folder': '新建文件夹',
+      'setup_done': '完成配置',
+      'save': '保存更改',
+      'discard': '放弃更改',
+      'edit': '编辑模式',
+      'preview': '预览模式',
+      'new_folder': '新建目录',
       'new_file': '新建文件',
-      'rename': '重命名',
-      'delete': '删除',
-      'logout': '登出',
-      'pw_change': '修改密码',
-      'license': '许可证',
-      'msg_inactivity': '检测到长时间未操作。将在 ',
-      'msg_sec': ' 秒后登出',
+      'rename': '更改名称',
+      'delete': '执行删除',
+      'logout': '终止会话',
+      'pw_change': '更新密码',
+      'license': '许可证信息',
+      'msg_inactivity': '检测到无操作。自动退出剩余时间：',
+      'msg_sec': ' 秒',
       'msg_continue': '继续操作',
       'msg_unsaved': '更改未保存',
-      'msg_confirm_discard': '放弃更改并继续？',
-      'msg_confirm_delete': '确认删除此项目？',
-      'text_file': '文本',
-      'md_file': 'Markdown',
+      'msg_confirm_discard': '确定要放弃更改并继续吗？',
+      'msg_confirm_delete': '确定要永久删除此项目及其内容吗？',
+      'text_file': '纯文本 (.ext)',
+      'md_file': 'Markdown (.mde)',
       'cancel': '取消',
       'execute': '执行',
-      'err_login': '密码错误',
-      'pick_folder': '选择存储文件夹',
-      'android_pick_msg': '请选择一个文件夹来存储您的加密笔记。',
+      'err_login': '身份验证失败。密码错误。',
+      'pick_folder': '选择数据存储目录',
+      'android_pick_msg': '请选择用于存放加密数据的持久目录。',
+      'err_ime': '请禁用输入法。',
+      'msg_clipboard': '剪贴板内容已清除。 🗑️',
     },
   };
-
   String t(String key) => _dict[_lang]?[key] ?? _dict['en']![key] ?? key;
 
+  // --- 初期化 ---
   String _norm(String path) => p.normalize(path);
-
-  // --- 初期化 (多言語 + AppImageパス対応) ---
   Future<void> initializeApp() async {
-    try {
-      // 言語判別
-      final String locale = Platform.localeName.split('_')[0];
-      _lang = _dict.containsKey(locale) ? locale : 'en';
-
-      String dataPath = "";
-
-      if (Platform.isWindows || Platform.isLinux) {
-        final exeDir = Directory(Platform.resolvedExecutable).parent.path;
-        dataPath = _norm(p.join(exeDir, 'user_data'));
-      } else if (Platform.isAndroid) {
-        final prefs = await SharedPreferences.getInstance();
-        String? savedPath = prefs.getString('android_data_path');
-        var status = await Permission.manageExternalStorage.status;
-        if (savedPath == null || !status.isGranted) {
-          _needsAndroidPath = true;
-          notifyListeners();
-          return;
-        }
-        dataPath = _norm(savedPath);
+    final String locale = Platform.localeName.split('_')[0];
+    _lang = _dict.containsKey(locale) ? locale : 'en';
+    if (Platform.isWindows || Platform.isLinux) {
+      final exeDir = Directory(Platform.resolvedExecutable).parent.path;
+      rootDirectory = Directory(_norm(p.join(exeDir, 'user_data')));
+      if (!rootDirectory!.existsSync())
+        rootDirectory!.createSync(recursive: true);
+    } else if (Platform.isAndroid) {
+      final prefs = await SharedPreferences.getInstance();
+      String? savedPath = prefs.getString('android_data_path');
+      var status = await Permission.manageExternalStorage.status;
+      if (savedPath == null || !status.isGranted) {
+        _needsAndroidPath = true;
+        notifyListeners();
+        return;
       }
-
-      final dataDir = Directory(dataPath);
-      if (!dataDir.existsSync()) dataDir.createSync(recursive: true);
-
-      rootDirectory = dataDir;
-      _isFirstRun = !File(
-        p.join(rootDirectory!.path, '.aegis_config_v2'),
-      ).existsSync();
-      selectedDirectory = rootDirectory;
-      _expandedPaths.add(_norm(rootDirectory!.path));
-      _needsAndroidPath = false;
-      refreshLists();
-    } catch (e) {
-      debugPrint("Init Error: $e");
-      if (Platform.isAndroid) _needsAndroidPath = true;
+      rootDirectory = Directory(_norm(savedPath));
+      if (!rootDirectory!.existsSync())
+        rootDirectory!.createSync(recursive: true);
     }
+    _isFirstRun = !File(
+      p.join(rootDirectory!.path, '.aegis_config_v2'),
+    ).existsSync();
+    selectedDirectory = rootDirectory;
+    _expandedPaths.add(_norm(rootDirectory!.path));
+    _needsAndroidPath = false;
+    refreshLists();
     notifyListeners();
   }
 
   // --- アクション ---
-  Future<void> pickAndroidFolder() async {
-    if (!Platform.isAndroid) return;
-    var status = await Permission.manageExternalStorage.request();
-    if (status.isGranted) {
-      String? result = await FilePicker.platform.getDirectoryPath();
-      if (result != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('android_data_path', result);
-        _needsAndroidPath = false;
-        await initializeApp();
+  Future<bool> login(String pw) async {
+    loginErrorMessage = null;
+    notifyListeners();
+    try {
+      await AegisSecurityService.initializeKey(pw);
+      final data = await File(
+        p.join(rootDirectory!.path, '.aegis_config_v2'),
+      ).readAsBytes();
+      if (await AegisSecurityService.decrypt(data) == "LOGIN_SUCCESS") {
+        selectedDirectory = rootDirectory;
+        selectedFile = null;
+        _expandedPaths.clear();
+        _expandedPaths.add(_norm(rootDirectory!.path));
+        _isInFolder = false;
+
+        _isLoggedIn = true;
+        refreshLists();
+        notifyListeners();
+        return true;
       }
-    } else {
-      await openAppSettings();
+    } catch (e) {
+      AegisSecurityService.wipeKey();
     }
+    loginErrorMessage = t('err_login');
+    notifyListeners();
+    return false;
   }
 
   Future<void> setupMasterPassword(String pw) async {
@@ -357,41 +385,29 @@ class AegisSecurityState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String pw) async {
-    loginErrorMessage = null;
-    notifyListeners();
-    try {
-      await AegisSecurityService.initializeKey(pw);
-      final data = await File(
-        p.join(rootDirectory!.path, '.aegis_config_v2'),
-      ).readAsBytes();
-      if (await AegisSecurityService.decrypt(data) == "LOGIN_SUCCESS") {
-        _isLoggedIn = true;
-        refreshLists();
-        notifyListeners();
-        return true;
-      }
-    } catch (e) {
-      AegisSecurityService.wipeKey();
-    }
-    loginErrorMessage = t('err_login');
-    notifyListeners();
-    return false;
-  }
-
   void logout() {
     AegisSecurityService.wipeKey();
     _isLoggedIn = false;
     isEditing = false;
+
     selectedFile = null;
+    selectedDirectory = rootDirectory;
     _expandedPaths.clear();
     _isInFolder = false;
+    editorController.clear();
+
     notifyListeners();
   }
 
   void refreshLists() {
     if (rootDirectory == null) return;
+
     rootNode = _buildTree(rootDirectory!);
+
+    if (selectedDirectory == null || !selectedDirectory!.existsSync()) {
+      selectedDirectory = rootDirectory;
+    }
+
     if (selectedDirectory != null) {
       files =
           selectedDirectory!
@@ -530,35 +546,70 @@ class AegisSecurityState extends ChangeNotifier {
     isProcessing = true;
     passwordChangeProgress = 0.0;
     notifyListeners();
+
     try {
-      final all = rootDirectory!
+      final allFiles = rootDirectory!
           .listSync(recursive: true)
           .whereType<File>()
           .where((f) => f.path.endsWith('.ext') || f.path.endsWith('.mde'))
           .toList();
-      for (int i = 0; i < all.length; i++) {
-        await AegisSecurityService.initializeKey(curPw);
-        final content = await AegisFileManager.readEncryptedFile(all[i].path);
-        await AegisSecurityService.initializeKey(newPw);
-        await AegisFileManager.saveEncryptedFile(all[i].path, content);
-        passwordChangeProgress = (i + 1) / all.length;
+
+      for (int i = 0; i < allFiles.length; i++) {
+        final filePath = allFiles[i].path;
+
+        final content = await AegisFileManager.readEncryptedFile(
+          filePath,
+          curPw,
+        );
+
+        await AegisFileManager.saveEncryptedFile(filePath, content, newPw);
+
+        // 進捗を更新
+        passwordChangeProgress = (i + 1) / allFiles.length;
         notifyListeners();
       }
-      final flag = await AegisSecurityService.encrypt("LOGIN_SUCCESS");
+
+      final encryptedFlag = await AegisSecurityService.encrypt("LOGIN_SUCCESS");
       await File(
-        _norm(p.join(rootDirectory!.path, '.aegis_config_v2')),
-      ).writeAsBytes(flag);
+        p.join(rootDirectory!.path, '.aegis_config_v2'),
+      ).writeAsBytes(encryptedFlag);
+
+      await AegisSecurityService.initializeKey(newPw);
+    } catch (e) {
+      debugPrint("Password Change Error: $e");
+
+      await AegisSecurityService.initializeKey(curPw);
+      rethrow;
     } finally {
       isProcessing = false;
       notifyListeners();
     }
   }
 
+  Future<void> pickAndroidFolder() async {
+    if (!Platform.isAndroid) return;
+    var status = await Permission.manageExternalStorage.request();
+    if (status.isGranted) {
+      String? result = await FilePicker.platform.getDirectoryPath();
+      if (result != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('android_data_path', result);
+        _needsAndroidPath = false;
+        await initializeApp();
+      }
+    } else {
+      await openAppSettings();
+    }
+  }
+
   Future<void> clearClipboard(BuildContext context) async {
     await AegisSecurityService.clearClipboard();
     if (context.mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(t('license'))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(t('msg_clipboard')),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 }
