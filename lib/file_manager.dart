@@ -18,7 +18,15 @@ import 'dart:io';
 import 'package:aegis_note/security_service.dart';
 
 class AegisFileManager {
-  static Future<void> saveEncryptedFile(String path, String content) async {
+  static Future<void> saveEncryptedFile(
+    String path,
+    String content, [
+    String? password,
+  ]) async {
+    if (password != null) {
+      await AegisSecurityService.initializeKey(password);
+    }
+
     final encrypted = await AegisSecurityService.encrypt(content);
     final file = File(path);
     final temp = File("$path.tmp");
@@ -27,9 +35,18 @@ class AegisFileManager {
     await temp.rename(path);
   }
 
-  static Future<String> readEncryptedFile(String path) async {
+  static Future<String> readEncryptedFile(
+    String path, [
+    String? password,
+  ]) async {
     final file = File(path);
     if (!await file.exists()) return "";
-    return await AegisSecurityService.decrypt(await file.readAsBytes());
+
+    if (password != null) {
+      await AegisSecurityService.initializeKey(password);
+    }
+
+    final bytes = await file.readAsBytes();
+    return await AegisSecurityService.decrypt(bytes);
   }
 }

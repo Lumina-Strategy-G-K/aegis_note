@@ -15,9 +15,11 @@
  */
 
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 class AegisSecurityService {
   static final _algorithm = Xchacha20(macAlgorithm: Poly1305());
@@ -63,6 +65,20 @@ class AegisSecurityService {
   }
 
   static Future<void> clearClipboard() async {
-    await Clipboard.setData(const ClipboardData(text: ''));
+    try {
+      await Clipboard.setData(const ClipboardData(text: ' '));
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      await Clipboard.setData(const ClipboardData(text: ''));
+
+      if (Platform.isAndroid) {
+        await SystemChannels.platform.invokeMethod('Clipboard.setData', {
+          'text': '',
+        });
+      }
+    } catch (e) {
+      debugPrint("Clipboard Clear Error: $e");
+    }
   }
 }
